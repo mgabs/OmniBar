@@ -5,8 +5,21 @@ chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() =>
 const OPEN_WINDOWS_KEY = 'openWindows';
 const openWindows = new Set();
 
-function hydrateOpenWindows() {}
-function persistOpenWindows() {}
+function hydrateOpenWindows() {
+  if (!chrome.storage?.session) return;
+  chrome.storage.session.get(OPEN_WINDOWS_KEY).then((data) => {
+    if (Array.isArray(data?.[OPEN_WINDOWS_KEY])) {
+      data[OPEN_WINDOWS_KEY].forEach((wid) => openWindows.add(wid));
+    }
+  }).catch(() => { });
+}
+
+function persistOpenWindows() {
+  if (!chrome.storage?.session) return;
+  chrome.storage.session.set({ [OPEN_WINDOWS_KEY]: Array.from(openWindows) }).catch(() => { });
+}
+
+hydrateOpenWindows();
 
 function togglePanel(windowId) {
   if (openWindows.has(windowId)) {
@@ -14,8 +27,11 @@ function togglePanel(windowId) {
     if (typeof chrome.sidePanel.close === 'function') {
       chrome.sidePanel.close({ windowId }).catch(() => { });
     }
+    persistOpenWindows();
   } else {
+    openWindows.add(windowId);
     chrome.sidePanel.open({ windowId }).catch(() => { });
+    persistOpenWindows();
   }
 }
 
@@ -51,6 +67,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
     if (wid) {
       if (msg.type === 'panel-opened') openWindows.add(wid);
       if (msg.type === 'panel-closed') openWindows.delete(wid);
+      persistOpenWindows();
     }
     sendResponse({ status: 'ok' });
     return;
@@ -67,7 +84,15 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
 });
 
+// Window cleanup
+chrome.windows.onRemoved.addListener((windowId) => {
+  if (openWindows.delete(windowId)) {
+    persistOpenWindows();
+  }
+});
+
 // Startup
 chrome.runtime.onStartup.addListener(async () => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => { });
+  hydrateOpenWindows();
 });
