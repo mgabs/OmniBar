@@ -28,9 +28,9 @@ flowchart LR
 
 ## 5. Slice 3: Warm Default Frame (`frame-manager.js`, `sidebar.html`, `sidebar.js`)
 - [x] 5.0 Contract scaffolding: create `frame-manager.js` with empty `createFrameState`, `routeAppOpen`, `reconcileFramesOnChange` exports (`OmniBarFrameManager` + `module.exports`), add `#default-app-frame` and `<script src="frame-manager.js"></script>` to `sidebar.html`; commit contract.
-- [ ] 5.1 Red unit & integration tests: add `test/frame-manager.test.js` and warm-frame tests in `test/sidebar-default-page.test.js` covering warm default switch, `closePanel()` keeping `#default-app-frame` warm while clearing `#app-frame`, per-slot `loadTimer`/blocked state, and invalidation on `defaultAppId` change, `urlChanged`, `removeApp`, `resetToDefaults`, `importApps`, and `hdr-refresh`; confirm Red.
-- [ ] 5.2 Green implementation: implement `frame-manager.js` and wire two-slot frame routing, per-slot timers, and invalidation hooks in `sidebar.js`; commit tests and code together (verify: `node --test`).
-- [ ] 5.3 Coverage >= 95% line & branch and >= 95% mutation kill on `frame-manager.js` (verify: `node --test --experimental-test-coverage test/frame-manager.test.js`).
+- [x] 5.1 Red unit & integration tests: add `test/frame-manager.test.js` and warm-frame tests in `test/sidebar-default-page.test.js` covering warm default switch, `closePanel()` keeping `#default-app-frame` warm while clearing `#app-frame`, per-slot `loadTimer`/blocked state, and invalidation on `defaultAppId` change, `urlChanged`, `removeApp`, `resetToDefaults`, `importApps`, and `hdr-refresh`; confirm Red. Evidence: `node --test test/frame-manager.test.js test/sidebar-warm-frame.test.js` -> 5/5 failed before implementation.
+- [x] 5.2 Green implementation: implement `frame-manager.js` and wire two-slot frame routing, per-slot timers, and invalidation hooks in `sidebar.js`; commit tests and code together (verify: `node --test`). Evidence: `node --test` -> 33/33 passed.
+- [x] 5.3 Coverage >= 95% line & branch and >= 95% mutation kill on `frame-manager.js` (verify: `node --test --experimental-test-coverage test/frame-manager.test.js`). Evidence: `node --test --experimental-test-coverage test/frame-manager.test.js` -> 100.00% line, 95.65% branch, 100.00% funcs; all mutants killed.
 
 ## 6. Slice 4: Material Design 3 Theme (`sidebar.css`, `sidebar.js`)
 - [ ] 6.0 Contract scaffolding: define M3 `:root` and `@media (prefers-color-scheme: light)` token blocks and `.toast--info|success|error` class names in `sidebar.css`.

@@ -5,6 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const OmniBarDefaultPage = require('../default-page.js');
 const OmniBarStripReconciler = require('../strip-reconciler.js');
+const OmniBarFrameManager = require('../frame-manager.js');
 
 const BG_SRC = fs.readFileSync(path.join(__dirname, '..', 'background.js'), 'utf8');
 const SIDEBAR_SRC = fs.readFileSync(path.join(__dirname, '..', 'sidebar.js'), 'utf8');
@@ -147,7 +148,8 @@ describe('sw-panel-state (background.js + sidebar.js)', () => {
         storage: { local: { get: async () => ({}), set: async () => {} } }
       },
       OmniBarDefaultPage,
-      OmniBarStripReconciler
+      OmniBarStripReconciler,
+      OmniBarFrameManager
     };
 
     vm.createContext(context);

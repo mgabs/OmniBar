@@ -23,10 +23,13 @@ let editMode = false;
 let editingId = null;
 let dragSrcIdx = null;
 let ctxApp = null;
-let loadTimer = null;
+let frameState = OmniBarFrameManager.createFrameState();
+let activeSlot = 'transient';
+const loadTimers = { default: null, transient: null };
 
 // DOM refs
 const $content = document.getElementById('content-panel');
+const $defaultFrame = document.getElementById('default-app-frame');
 const $frame = document.getElementById('app-frame');
 const $spinner = document.getElementById('load-spinner');
 const $blocked = document.getElementById('blocked-msg');
@@ -195,6 +198,80 @@ function toggleApp(app) {
   openApp(app);
 }
 
+function getFrameEl(slot) {
+  return slot === 'default' ? $defaultFrame : $frame;
+}
+
+function syncSlotUI(slot) {
+  const other = slot === 'default' ? 'transient' : 'default';
+  getFrameEl(other).classList.add('hidden');
+
+  const status = frameState[slot].status;
+  const activeEl = getFrameEl(slot);
+  if (status === 'blocked') {
+    activeEl.classList.add('hidden');
+    $spinner.classList.add('hidden');
+    $blocked.classList.remove('hidden');
+  } else {
+    activeEl.classList.remove('hidden');
+    $blocked.classList.add('hidden');
+    $spinner.classList.toggle('hidden', status !== 'loading');
+  }
+}
+
+function clearSlot(slot) {
+  clearTimeout(loadTimers[slot]);
+  loadTimers[slot] = null;
+  const el = getFrameEl(slot);
+  el.onload = null;
+  el.src = '';
+  el.classList.add('hidden');
+}
+
+function reconcileAllFrames() {
+  const res = OmniBarFrameManager.reconcileFramesOnChange(frameState, apps, defaultAppId);
+  if (res.clearDefault) clearSlot('default');
+  if (res.clearTransient) clearSlot('transient');
+  frameState = res.nextState;
+}
+
+function loadSlot(slot, app) {
+  clearTimeout(loadTimers[slot]);
+  frameState[slot] = { appId: app.id, url: app.url, status: 'loading' };
+  syncSlotUI(slot);
+
+  const el = getFrameEl(slot);
+  let realLoad = false;
+  el.onload = () => {
+    if (!realLoad) return;
+    frameState[slot].status = 'loaded';
+    clearTimeout(loadTimers[slot]);
+    if (panelOpen && activeSlot === slot) syncSlotUI(slot);
+  };
+
+  el.src = '';
+  requestAnimationFrame(() => {
+    realLoad = true;
+    el.src = app.url;
+
+    // Blocked-site detection: if still loading after 8s, check if it actually loaded
+    loadTimers[slot] = setTimeout(() => {
+      try {
+        const doc = el.contentDocument;
+        if (!doc || doc.location.href === 'about:blank') {
+          frameState[slot].status = 'blocked';
+        } else {
+          frameState[slot].status = 'loaded';
+        }
+      } catch (_) {
+        // SecurityError = cross-origin page loaded successfully — this is normal
+        frameState[slot].status = 'loaded';
+      }
+      if (panelOpen && activeSlot === slot) syncSlotUI(slot);
+    }, 8000);
+  });
+}
+
 function openApp(app) {
   activeId = app.id;
   panelOpen = true;
@@ -208,41 +285,15 @@ function openApp(app) {
   try { $panelUrlText.textContent = new URL(app.url).hostname; } catch { $panelUrlText.textContent = app.url; }
   $panelHeader.classList.remove('hidden');
 
-  // Reset state
-  clearTimeout(loadTimer);
-  $frame.style.display = 'block';
-  $blocked.classList.add('hidden');
-  $spinner.classList.remove('hidden');
+  const routed = OmniBarFrameManager.routeAppOpen(frameState, app, defaultAppId);
+  activeSlot = routed.slot;
+  frameState = routed.nextState;
 
-  // Skip the onload that fires for src='' (about:blank), only handle the real URL load
-  let realLoad = false;
-  $frame.onload = () => {
-    if (!realLoad) return;
-    $spinner.classList.add('hidden');
-    clearTimeout(loadTimer);
-  };
-
-  $frame.src = '';
-  requestAnimationFrame(() => {
-    realLoad = true;
-    $frame.src = app.url;
-
-    // Blocked-site detection: if still loading after 8s, check if it actually loaded
-    loadTimer = setTimeout(() => {
-      $spinner.classList.add('hidden');
-      try {
-        const doc = $frame.contentDocument;
-        // If we can read location and it's still blank, the navigation likely failed
-        if (!doc || doc.location.href === 'about:blank') {
-          $frame.style.display = 'none';
-          $blocked.classList.remove('hidden');
-        }
-        // If we get here without an error, it's same-origin and loaded fine
-      } catch (_) {
-        // SecurityError = cross-origin page loaded successfully — this is normal
-      }
-    }, 8000);
-  });
+  if (routed.shouldLoad) {
+    loadSlot(routed.slot, app);
+  } else {
+    syncSlotUI(routed.slot);
+  }
 
   syncStripActiveState();
 }
@@ -251,11 +302,11 @@ function closePanel() {
   panelOpen = false;
   activeId = null;
 
-  clearTimeout(loadTimer);
-  $frame.onload = null;
+  clearSlot('transient');
+  frameState.transient = { appId: null, url: '', status: 'idle' };
+  $defaultFrame.classList.add('hidden');
   $spinner.classList.add('hidden');
   $blocked.classList.add('hidden');
-  $frame.style.display = 'block';
   $panelHeader.classList.add('hidden');
 
   // Hide content but keep as flex spacer (so strip stays right)
@@ -264,7 +315,6 @@ function closePanel() {
   // Reset title
   document.title = 'OmniBar';
 
-  $frame.src = '';
   syncStripActiveState();
 }
 
@@ -323,7 +373,7 @@ function saveModal() {
   } else {
     apps.push({ id: uid(), name, url });
   }
-  save(); closeModal(); renderStrip();
+  save(); closeModal(); renderStrip(); reconcileAllFrames();
 }
 
 // Remove
@@ -331,6 +381,7 @@ function removeApp(id) {
   if (activeId === id) closePanel();
   apps = apps.filter(a => a.id !== id);
   defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, defaultAppId);
+  reconcileAllFrames();
   save(); renderStrip();
 }
 
@@ -355,6 +406,7 @@ function renderDefaultPageSelect() {
 }
 function onDefaultPageChange(nextId) {
   defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, nextId);
+  reconcileAllFrames();
   save();
 }
 function openSettings() {
@@ -403,6 +455,7 @@ function importApps(file) {
         throw new Error('Invalid format');
       apps = imported.map(a => ({ id: a.id || uid(), name: String(a.name), url: String(a.url) }));
       defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, defaultAppId);
+      reconcileAllFrames();
       save();
       if (panelOpen) closePanel();
       renderStrip(); closeSettings();
@@ -418,6 +471,7 @@ function resetToDefaults() {
   if (!confirm('Reset all apps to defaults? This cannot be undone.')) return;
   apps = DEFAULT_APPS.map(a => ({ ...a, id: uid() }));
   defaultAppId = null;
+  reconcileAllFrames();
   save();
   if (panelOpen) closePanel();
   renderStrip();
@@ -493,11 +547,8 @@ function bindListeners() {
   });
 
   document.getElementById('hdr-refresh').addEventListener('click', () => {
-    if ($frame.src) {
-      const s = $frame.src;
-      $spinner.classList.remove('hidden');
-      $frame.src = ''; requestAnimationFrame(() => { $frame.src = s; });
-    }
+    const activeApp = apps.find(a => a.id === activeId);
+    if (activeApp) loadSlot(activeSlot, activeApp);
   });
 
 

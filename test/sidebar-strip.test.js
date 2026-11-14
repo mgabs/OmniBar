@@ -5,6 +5,7 @@ const path = require('node:path');
 const vm = require('node:vm');
 const OmniBarDefaultPage = require('../default-page.js');
 const OmniBarStripReconciler = require('../strip-reconciler.js');
+const OmniBarFrameManager = require('../frame-manager.js');
 
 const SIDEBAR_SRC = fs.readFileSync(path.join(__dirname, '..', 'sidebar.js'), 'utf8');
 
@@ -105,7 +106,8 @@ async function bootSidebarForStrip(apps) {
       }
     },
     OmniBarDefaultPage,
-    OmniBarStripReconciler
+    OmniBarStripReconciler,
+    OmniBarFrameManager
   };
   vm.createContext(context);
   vm.runInContext(SIDEBAR_SRC, context);

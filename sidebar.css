@@ -56,12 +56,18 @@ body {
   pointer-events: none;
 }
 
-/* iframe  */
+/* iframe */
+#default-app-frame,
 #app-frame {
   flex: 1;
   border: none;
   width: 100%;
   background: #fff;
+}
+
+#default-app-frame.hidden,
+#app-frame.hidden {
+  display: none;
 }
 
 /* Blocked-site overlay */
