@@ -4,6 +4,8 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 const OmniBarDefaultPage = require('../default-page.js');
+const OmniBarStripReconciler = require('../strip-reconciler.js');
+const OmniBarFrameManager = require('../frame-manager.js');
 
 const SIDEBAR_SRC = fs.readFileSync(path.join(__dirname, '..', 'sidebar.js'), 'utf8');
 
@@ -37,7 +39,16 @@ function createElement(id = '') {
       contains: c => classes.has(c)
     },
     setAttribute() {},
+    remove() {
+      if (this.parentNode) {
+        const idx = this.parentNode.children.indexOf(this);
+        if (idx >= 0) this.parentNode.children.splice(idx, 1);
+        this.parentNode = null;
+      }
+    },
     appendChild(child) {
+      if (child.parentNode) child.remove();
+      child.parentNode = this;
       this.children.push(child);
       if (this.id === 'settings-default-page') this.options.push(child);
       return child;
@@ -119,6 +130,8 @@ async function bootSidebar(initialStorage = {}) {
     window: { addEventListener: () => {}, innerWidth: 400, innerHeight: 800 },
     chrome,
     OmniBarDefaultPage,
+    OmniBarStripReconciler,
+    OmniBarFrameManager,
     setFileReaderResult: (str) => { fileReaderResult = str; }
   };
 
@@ -145,17 +158,17 @@ describe('sidebar.js default-page integration', () => {
     assert.equal(getCalls.length, 1);
     assert.deepEqual(Array.from(getCalls[0]), ['apps', 'defaultAppId']);
     assert.equal(getEl('content-panel').classList.contains('hidden'), false);
-    assert.equal(getEl('app-frame').src, 'https://gemini.google.com');
+    assert.equal(getEl('default-app-frame').src, 'https://gemini.google.com');
   });
 
   it('init() stays closed when defaultAppId is null or stale', async () => {
     const nullRun = await bootSidebar({ apps: SAMPLE_APPS, defaultAppId: null });
     assert.equal(nullRun.getEl('content-panel').classList.contains('hidden'), true);
-    assert.equal(nullRun.getEl('app-frame').src, undefined);
+    assert.equal(nullRun.getEl('default-app-frame').src, undefined);
 
     const staleRun = await bootSidebar({ apps: SAMPLE_APPS, defaultAppId: 'missing' });
     assert.equal(staleRun.getEl('content-panel').classList.contains('hidden'), true);
-    assert.equal(staleRun.getEl('app-frame').src, undefined);
+    assert.equal(staleRun.getEl('default-app-frame').src, undefined);
   });
 
   it('openSettings() populates #settings-default-page with None and current apps', async () => {

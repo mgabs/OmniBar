@@ -13,17 +13,23 @@ const DEFAULT_APPS = [
 
 // States
 let apps = [];
+let renderedApps = [];
+const stripNodes = new Map();
 let defaultAppId = null;
+let currentWindowId = null;
 let activeId = null;
 let panelOpen = false;
 let editMode = false;
 let editingId = null;
 let dragSrcIdx = null;
 let ctxApp = null;
-let loadTimer = null;
+let frameState = OmniBarFrameManager.createFrameState();
+let activeSlot = 'transient';
+const loadTimers = { default: null, transient: null };
 
 // DOM refs
 const $content = document.getElementById('content-panel');
+const $defaultFrame = document.getElementById('default-app-frame');
 const $frame = document.getElementById('app-frame');
 const $spinner = document.getElementById('load-spinner');
 const $blocked = document.getElementById('blocked-msg');
@@ -43,14 +49,13 @@ const $panelUrlText = document.getElementById('panel-url-text');
 
 // Init
 async function init() {
-  let windowId = null;
   try {
     const win = await chrome.windows.getCurrent();
-    windowId = win?.id;
+    currentWindowId = win?.id ?? null;
   } catch (_) { }
 
-  if (windowId) {
-    chrome.runtime.sendMessage({ type: 'panel-opened', windowId }).catch(() => { });
+  if (currentWindowId) {
+    chrome.runtime.sendMessage({ type: 'panel-opened', windowId: currentWindowId }).catch(() => { });
   }
 
   const stored = await chrome.storage.local.get(['apps', 'defaultAppId']);
@@ -65,8 +70,8 @@ async function init() {
   // When the user closes the panel via the browser's own X button,
   // notify background.js so the hotkey toggle state stays accurate.
   window.addEventListener('pagehide', () => {
-    if (windowId) {
-      chrome.runtime.sendMessage({ type: 'panel-closed', windowId }).catch(() => { });
+    if (currentWindowId) {
+      chrome.runtime.sendMessage({ type: 'panel-closed', windowId: currentWindowId }).catch(() => { });
     }
   });
 }
@@ -84,70 +89,187 @@ function save() {
   chrome.storage.local.set({ apps, defaultAppId });
 }
 
-// Render app icons
-function renderStrip() {
-  $icons.innerHTML = '';
-  if (editMode) $icons.classList.add('edit-mode');
-  else $icons.classList.remove('edit-mode');
+// Render app icons (keyed in-place reconciliation)
+function syncStripActiveState() {
+  for (const [id, el] of stripNodes) {
+    el.classList.toggle('active', panelOpen && id === activeId);
+  }
+}
 
+function syncStripEditMode() {
+  $icons.classList.toggle('edit-mode', editMode);
   document.getElementById('btn-edit').classList.toggle('active', editMode);
+}
+
+function applyIconData(el, app, idx) {
+  el.dataset.idx = idx;
+  el.dataset.tooltip = app.name;
+  const img = el.children[0];
+  const fb = el.children[1];
+  const nextFavicon = getFavicon(app.url);
+  if (img.src !== nextFavicon) {
+    img.style.display = '';
+    fb.style.display = '';
+    img.src = nextFavicon;
+  }
+  img.alt = app.name;
+  fb.textContent = (app.name.trim()[0] ?? '?').toUpperCase();
+}
+
+function createIconElement(app, idx) {
+  const el = document.createElement('div');
+  el.className = 'app-icon';
+  el.dataset.id = app.id;
+  el.draggable = true;
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+
+  // Favicon
+  const img = document.createElement('img');
+  // Letter fallback
+  const fb = document.createElement('span');
+  fb.className = 'fallback';
+
+  img.addEventListener('error', () => {
+    img.style.display = 'none';
+    fb.style.display = 'flex';
+  });
+
+  el.appendChild(img);
+  el.appendChild(fb);
+
+  // Remove icon (visible in edit mode via CSS)
+  const badge = document.createElement('button');
+  badge.className = 'remove-badge';
+  badge.textContent = '✕';
+  badge.title = 'Remove';
+  badge.addEventListener('click', e => { e.stopPropagation(); removeApp(app.id); });
+  el.appendChild(badge);
+
+  applyIconData(el, app, idx);
+
+  const currentApp = () => apps[Number(el.dataset.idx)] || app;
+  el.addEventListener('click', () => { if (!editMode) toggleApp(currentApp()); });
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' && !editMode) toggleApp(currentApp()); });
+  el.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); showCtxMenu(e, currentApp()); });
+  el.addEventListener('dragstart', e => onDragStart(e, Number(el.dataset.idx)));
+  el.addEventListener('dragover', e => onDragOver(e, el));
+  el.addEventListener('drop', e => onDrop(e, Number(el.dataset.idx)));
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('dragend', () => cleanDrag());
+
+  return el;
+}
+
+function renderStrip() {
+  const diff = OmniBarStripReconciler.diffStripApps(renderedApps, apps);
+
+  for (const id of diff.toRemoveIds) {
+    const node = stripNodes.get(id);
+    if (node) node.remove();
+    stripNodes.delete(id);
+  }
+
+  for (const app of diff.toCreate) {
+    stripNodes.set(app.id, createIconElement(app, 0));
+  }
+
+  for (const app of diff.toUpdate) {
+    const node = stripNodes.get(app.id);
+    if (node) applyIconData(node, app, 0);
+  }
 
   apps.forEach((app, i) => {
-    const el = document.createElement('div');
-    el.className = 'app-icon' + (panelOpen && app.id === activeId ? ' active' : '');
-    el.dataset.id = app.id;
-    el.dataset.idx = i;
-    el.dataset.tooltip = app.name;
-    el.draggable = true;
-    el.setAttribute('role', 'button');
-    el.setAttribute('tabindex', '0');
-
-    // Favicon
-    const img = document.createElement('img');
-    img.src = getFavicon(app.url);
-    img.alt = app.name;
-
-    // Letter fallback
-    const fb = document.createElement('span');
-    fb.className = 'fallback';
-    fb.textContent = (app.name.trim()[0] ?? '?').toUpperCase();
-
-    img.addEventListener('error', () => {
-      img.style.display = 'none';
-      fb.style.display = 'flex';
-    });
-
-    el.appendChild(img);
-    el.appendChild(fb);
-
-    // Remove icon (edit mode)
-    if (editMode) {
-      const badge = document.createElement('button');
-      badge.className = 'remove-badge';
-      badge.textContent = '✕';
-      badge.title = 'Remove';
-      badge.addEventListener('click', e => { e.stopPropagation(); removeApp(app.id); });
-      el.appendChild(badge);
+    const node = stripNodes.get(app.id);
+    if (node) {
+      node.dataset.idx = i;
+      $icons.appendChild(node);
     }
-
-    // Click: open or close
-    el.addEventListener('click', () => { if (!editMode) toggleApp(app); });
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' && !editMode) toggleApp(app); });
-    el.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); showCtxMenu(e, app); });
-    el.addEventListener('dragstart', e => onDragStart(e, i));
-    el.addEventListener('dragover', e => onDragOver(e, el));
-    el.addEventListener('drop', e => onDrop(e, i));
-    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-    el.addEventListener('dragend', () => cleanDrag());
-
-    $icons.appendChild(el);
   });
+
+  renderedApps = apps.map(a => ({ ...a }));
+  syncStripActiveState();
+  syncStripEditMode();
 }
 
 // Open / toggle app
 function toggleApp(app) {
   if (panelOpen && activeId === app.id) { closePanel(); return; }
   openApp(app);
+}
+
+function getFrameEl(slot) {
+  return slot === 'default' ? $defaultFrame : $frame;
+}
+
+function syncSlotUI(slot) {
+  const other = slot === 'default' ? 'transient' : 'default';
+  getFrameEl(other).classList.add('hidden');
+
+  const status = frameState[slot].status;
+  const activeEl = getFrameEl(slot);
+  if (status === 'blocked') {
+    activeEl.classList.add('hidden');
+    $spinner.classList.add('hidden');
+    $blocked.classList.remove('hidden');
+  } else {
+    activeEl.classList.remove('hidden');
+    $blocked.classList.add('hidden');
+    $spinner.classList.toggle('hidden', status !== 'loading');
+  }
+}
+
+function clearSlot(slot) {
+  clearTimeout(loadTimers[slot]);
+  loadTimers[slot] = null;
+  const el = getFrameEl(slot);
+  el.onload = null;
+  el.src = '';
+  el.classList.add('hidden');
+}
+
+function reconcileAllFrames() {
+  const res = OmniBarFrameManager.reconcileFramesOnChange(frameState, apps, defaultAppId);
+  if (res.clearDefault) clearSlot('default');
+  if (res.clearTransient) clearSlot('transient');
+  frameState = res.nextState;
+}
+
+function loadSlot(slot, app) {
+  clearTimeout(loadTimers[slot]);
+  frameState[slot] = { appId: app.id, url: app.url, status: 'loading' };
+  syncSlotUI(slot);
+
+  const el = getFrameEl(slot);
+  let realLoad = false;
+  el.onload = () => {
+    if (!realLoad) return;
+    frameState[slot].status = 'loaded';
+    clearTimeout(loadTimers[slot]);
+    if (panelOpen && activeSlot === slot) syncSlotUI(slot);
+  };
+
+  el.src = '';
+  requestAnimationFrame(() => {
+    realLoad = true;
+    el.src = app.url;
+
+    // Blocked-site detection: if still loading after 8s, check if it actually loaded
+    loadTimers[slot] = setTimeout(() => {
+      try {
+        const doc = el.contentDocument;
+        if (!doc || doc.location.href === 'about:blank') {
+          frameState[slot].status = 'blocked';
+        } else {
+          frameState[slot].status = 'loaded';
+        }
+      } catch (_) {
+        // SecurityError = cross-origin page loaded successfully — this is normal
+        frameState[slot].status = 'loaded';
+      }
+      if (panelOpen && activeSlot === slot) syncSlotUI(slot);
+    }, 8000);
+  });
 }
 
 function openApp(app) {
@@ -163,57 +285,28 @@ function openApp(app) {
   try { $panelUrlText.textContent = new URL(app.url).hostname; } catch { $panelUrlText.textContent = app.url; }
   $panelHeader.classList.remove('hidden');
 
-  // Reset state
-  clearTimeout(loadTimer);
-  $frame.style.display = 'block';
-  $blocked.classList.add('hidden');
-  $spinner.classList.remove('hidden');
+  const routed = OmniBarFrameManager.routeAppOpen(frameState, app, defaultAppId);
+  activeSlot = routed.slot;
+  frameState = routed.nextState;
 
-  // Skip the onload that fires for src='' (about:blank), only handle the real URL load
-  let realLoad = false;
-  $frame.onload = () => {
-    if (!realLoad) return;
-    $spinner.classList.add('hidden');
-    clearTimeout(loadTimer);
-  };
+  if (routed.shouldLoad) {
+    loadSlot(routed.slot, app);
+  } else {
+    syncSlotUI(routed.slot);
+  }
 
-  $frame.src = '';
-  requestAnimationFrame(() => {
-    realLoad = true;
-    $frame.src = app.url;
-
-    // Blocked-site detection: if still loading after 8s, check if it actually loaded
-    loadTimer = setTimeout(() => {
-      $spinner.classList.add('hidden');
-      try {
-        const doc = $frame.contentDocument;
-        // If we can read location and it's still blank, the navigation likely failed
-        if (!doc || doc.location.href === 'about:blank') {
-          $frame.style.display = 'none';
-          $blocked.classList.remove('hidden');
-        }
-        // If we get here without an error, it's same-origin and loaded fine
-      } catch (_) {
-        // SecurityError = cross-origin page loaded successfully — this is normal
-      }
-    }, 8000);
-  });
-
-  renderStrip();
+  syncStripActiveState();
 }
 
 function closePanel() {
   panelOpen = false;
   activeId = null;
 
-  // Notify background so hotkey toggle state stays accurate
-  chrome.runtime.sendMessage({ type: 'panel-closed' }).catch(() => { });
-
-  clearTimeout(loadTimer);
-  $frame.onload = null;
+  clearSlot('transient');
+  frameState.transient = { appId: null, url: '', status: 'idle' };
+  $defaultFrame.classList.add('hidden');
   $spinner.classList.add('hidden');
   $blocked.classList.add('hidden');
-  $frame.style.display = 'block';
   $panelHeader.classList.add('hidden');
 
   // Hide content but keep as flex spacer (so strip stays right)
@@ -222,8 +315,7 @@ function closePanel() {
   // Reset title
   document.title = 'OmniBar';
 
-  $frame.src = '';
-  renderStrip();
+  syncStripActiveState();
 }
 
 // Open helpers
@@ -281,7 +373,7 @@ function saveModal() {
   } else {
     apps.push({ id: uid(), name, url });
   }
-  save(); closeModal(); renderStrip();
+  save(); closeModal(); renderStrip(); reconcileAllFrames();
 }
 
 // Remove
@@ -289,6 +381,7 @@ function removeApp(id) {
   if (activeId === id) closePanel();
   apps = apps.filter(a => a.id !== id);
   defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, defaultAppId);
+  reconcileAllFrames();
   save(); renderStrip();
 }
 
@@ -296,7 +389,7 @@ function removeApp(id) {
 function toggleEditMode() {
   editMode = !editMode;
   if (editMode && panelOpen) closePanel();
-  renderStrip();
+  syncStripEditMode();
 }
 
 // Settings
@@ -313,6 +406,7 @@ function renderDefaultPageSelect() {
 }
 function onDefaultPageChange(nextId) {
   defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, nextId);
+  reconcileAllFrames();
   save();
 }
 function openSettings() {
@@ -336,15 +430,8 @@ let toastTimeoutId = null;
 function showToast(message, type = 'info') {
   const toast = document.getElementById('toast');
   toast.textContent = message;
-  toast.className = 'toast'; // Reset classes
-  if (type === 'success') {
-    toast.style.background = '#2e7d32';
-  } else if (type === 'error') {
-    toast.style.background = 'var(--danger)';
-  } else {
-    toast.style.background = 'var(--accent)';
-  }
-  toast.classList.add('show');
+  const variant = type === 'success' ? 'toast--success' : type === 'error' ? 'toast--error' : 'toast--info';
+  toast.className = `toast ${variant} show`;
 
   if (toastTimeoutId) clearTimeout(toastTimeoutId);
   toastTimeoutId = setTimeout(() => {
@@ -361,6 +448,7 @@ function importApps(file) {
         throw new Error('Invalid format');
       apps = imported.map(a => ({ id: a.id || uid(), name: String(a.name), url: String(a.url) }));
       defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, defaultAppId);
+      reconcileAllFrames();
       save();
       if (panelOpen) closePanel();
       renderStrip(); closeSettings();
@@ -376,6 +464,7 @@ function resetToDefaults() {
   if (!confirm('Reset all apps to defaults? This cannot be undone.')) return;
   apps = DEFAULT_APPS.map(a => ({ ...a, id: uid() }));
   defaultAppId = null;
+  reconcileAllFrames();
   save();
   if (panelOpen) closePanel();
   renderStrip();
@@ -451,11 +540,8 @@ function bindListeners() {
   });
 
   document.getElementById('hdr-refresh').addEventListener('click', () => {
-    if ($frame.src) {
-      const s = $frame.src;
-      $spinner.classList.remove('hidden');
-      $frame.src = ''; requestAnimationFrame(() => { $frame.src = s; });
-    }
+    const activeApp = apps.find(a => a.id === activeId);
+    if (activeApp) loadSlot(activeSlot, activeApp);
   });
 
 
