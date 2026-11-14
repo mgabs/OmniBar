@@ -3,6 +3,8 @@ name: CI
 on:
   pull_request:
     branches: [main, master]
+  push:
+    branches: [main, master]
 
 permissions:
   contents: read
@@ -14,21 +16,53 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      # Skeleton: uncomment and adapt each step for your stack, then see openspec/spec-rails/TODO.md.
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
 
-      # - name: Set up toolchain
-      #   uses: <setup action for your language>
+      - name: Lint
+        run: make lint
 
-      # - name: Unit tests
-      #   run: <test command>
+      - name: Unit & integration tests
+        run: make test
 
-      # - name: Coverage (>= 95%)
-      #   run: <coverage command>
+      - name: Coverage (>= 95%)
+        run: make coverage
 
-      # - name: Mutation testing (>= 95% kill)
-      #   run: <mutation command>
+      - name: Build package
+        run: make build
 
-      - name: Placeholder
-        run: echo "No quality gates configured yet; see openspec/spec-rails/TODO.md"
+  release:
+    name: Release on merge to main
+    needs: rails
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Build package
+        run: make build
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(node -p "require('./manifest.json').version")
+          TAG="v${VERSION}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/omnibar.zip --clobber
+          else
+            gh release create "$TAG" dist/omnibar.zip --title "$TAG" --generate-notes
+          fi
