@@ -46,6 +46,9 @@
           <button class="hdr-btn" id="hdr-close" title="Close">&#x2715;</button>
         </div>
       </div>
+      <iframe id="default-app-frame" class="hidden"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+        allow="clipboard-read; clipboard-write"></iframe>
       <iframe id="app-frame"
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
         allow="clipboard-read; clipboard-write"></iframe>
@@ -109,6 +112,10 @@
       </div>
       <div id="settings-body">
         <section>
+          <h4>Default Page</h4>
+          <select class="settings-select" id="settings-default-page" aria-label="Default Page"></select>
+        </section>
+        <section>
           <h4>App Data</h4>
           <button class="settings-btn" id="settings-export">
             <svg class="btn-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor">
@@ -167,6 +174,9 @@
   </div>
 
   <div id="toast" class="toast"></div>
+  <script src="default-page.js"></script>
+  <script src="strip-reconciler.js"></script>
+  <script src="frame-manager.js"></script>
   <script src="sidebar.js"></script>
 </body>
 
