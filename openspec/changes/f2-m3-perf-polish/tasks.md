@@ -21,7 +21,7 @@ flowchart LR
 - [x] 3.3 Coverage >= 95% and mutation check on SW state logic (verify: `node --test --experimental-test-coverage test/sw-panel-state.test.js`). Evidence: all SW open/close/hydrate/persist/onRemoved branches exercised in `test/sw-panel-state.test.js` (4/4 passed).
 
 ## 4. Slice 2: In-Place Strip Reconciliation (`strip-reconciler.js`, `sidebar.html`, `sidebar.js`)
-- [ ] 4.0 Contract scaffolding: create `strip-reconciler.js` with empty `diffStripApps(prevApps, nextApps)` export (`OmniBarStripReconciler` + `module.exports`) and add `<script src="strip-reconciler.js"></script>` to `sidebar.html`; commit contract.
+- [x] 4.0 Contract scaffolding: create `strip-reconciler.js` with empty `diffStripApps(prevApps, nextApps)` export (`OmniBarStripReconciler` + `module.exports`) and add `<script src="strip-reconciler.js"></script>` to `sidebar.html`; commit contract.
 - [ ] 4.1 Red unit & integration tests: add `test/strip-reconciler.test.js` (add, edit, remove, reorder, unchanged) and strip DOM-reuse tests in `test/sidebar-strip.test.js` (no node recreation on `openApp`/`closePanel`/`toggleEditMode`, dynamic `dataset.idx` on drag-and-drop); confirm Red.
 - [ ] 4.2 Green implementation: implement `diffStripApps` in `strip-reconciler.js` and `syncStripActiveState()`, `syncStripEditMode()`, keyed `renderStrip()`, and dynamic `Number(el.dataset.idx)` drag handlers in `sidebar.js`; commit tests and code together (verify: `node --test`).
 - [ ] 4.3 Coverage >= 95% line & branch and >= 95% mutation kill on `strip-reconciler.js` (verify: `node --test --experimental-test-coverage test/strip-reconciler.test.js`).
