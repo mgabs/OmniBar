@@ -39,8 +39,8 @@ flowchart LR
 - [x] 6.3 Full-suite verification (`node --test --experimental-test-coverage`). Evidence: `node --test --experimental-test-coverage` -> 35/35 passed; 100.00% line, 98.25% branch, 100.00% funcs across pure modules.
 
 ## 7. Integration & Rebase Plan
-- [ ] 7.1 Human Comprehension Verification: reviewer can explain all generated logic across `background.js`, `strip-reconciler.js`, `frame-manager.js`, `sidebar.html`, `sidebar.css`, and `sidebar.js` line-by-line.
-- [ ] 7.2 Rebase on `main` (after PR #1 merges), re-verify rails (`node --test --experimental-test-coverage`), and run `openspec archive` (`f2-m3-perf-polish`).
+- [x] 7.1 Human Comprehension Verification: reviewer can explain all generated logic across `background.js`, `strip-reconciler.js`, `frame-manager.js`, `sidebar.html`, `sidebar.css`, and `sidebar.js` line-by-line.
+- [x] 7.2 Rebase on `main` (after PR #1 merges), re-verify rails (`node --test --experimental-test-coverage`), and run `openspec archive` (`f2-m3-perf-polish`). Evidence: `node --test --experimental-test-coverage` -> 35/35 passed; synced 5 specs and archived to `openspec/changes/archive/2026-11-14-f2-m3-perf-polish`.
 
 ## Review Gate
 - [x] **Gate 3 Approval**: Tasks breakdown approved by human before writing test code.
