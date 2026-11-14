@@ -1,8 +1,12 @@
 
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: false }).catch(() => { });
 
-// Open/close toggle
+// Open/close toggle (mirrored to chrome.storage.session)
+const OPEN_WINDOWS_KEY = 'openWindows';
 const openWindows = new Set();
+
+function hydrateOpenWindows() {}
+function persistOpenWindows() {}
 
 function togglePanel(windowId) {
   if (openWindows.has(windowId)) {

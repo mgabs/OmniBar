@@ -15,7 +15,7 @@ flowchart LR
 | `default` (sequential) | `.` (active workspace) | `feat/f2-m3-perf-polish` | Gate 3 ticked |
 
 ## 3. Slice 1: SW Panel State (`background.js`, `sidebar.js`)
-- [ ] 3.0 Contract scaffolding: document `openWindows` session key and `panel-closed` `windowId` contract in `background.js` and `sidebar.js` (verify: `node -c background.js && node -c sidebar.js`).
+- [x] 3.0 Contract scaffolding: document `openWindows` session key and `panel-closed` `windowId` contract in `background.js` and `sidebar.js` (verify: `node -c background.js && node -c sidebar.js`).
 - [ ] 3.1 Red tests: add `test/sw-panel-state.test.js` (`node:vm` with mocked `chrome.storage.session`, `chrome.sidePanel`, `chrome.windows`, `chrome.action`, `chrome.commands`, `chrome.runtime`) verifying synchronous `sidePanel.open` inside gesture, `storage.session` hydration/persistence, `chrome.windows.onRemoved` cleanup, and `panel-closed` passing `windowId` only on `pagehide` (not `closePanel()`); confirm Red.
 - [ ] 3.2 Green implementation: update `background.js` and `sidebar.js` (`init()` stores `windowId` for `pagehide`, `closePanel()` stops sending `panel-closed` without `windowId`); commit tests and code together (verify: `node --test test/sw-panel-state.test.js`).
 - [ ] 3.3 Coverage >= 95% and mutation check on SW state logic (verify: `node --test --experimental-test-coverage test/sw-panel-state.test.js`).

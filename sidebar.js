@@ -14,6 +14,7 @@ const DEFAULT_APPS = [
 // States
 let apps = [];
 let defaultAppId = null;
+let currentWindowId = null;
 let activeId = null;
 let panelOpen = false;
 let editMode = false;
