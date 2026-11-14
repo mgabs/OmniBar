@@ -33,10 +33,10 @@ flowchart LR
 - [x] 5.3 Coverage >= 95% line & branch and >= 95% mutation kill on `frame-manager.js` (verify: `node --test --experimental-test-coverage test/frame-manager.test.js`). Evidence: `node --test --experimental-test-coverage test/frame-manager.test.js` -> 100.00% line, 95.65% branch, 100.00% funcs; all mutants killed.
 
 ## 6. Slice 4: Material Design 3 Theme (`sidebar.css`, `sidebar.js`)
-- [ ] 6.0 Contract scaffolding: define M3 `:root` and `@media (prefers-color-scheme: light)` token blocks and `.toast--info|success|error` class names in `sidebar.css`.
-- [ ] 6.1 Red tests: add `test/m3-theme.test.js` asserting M3 tokens (`--md-sys-color-surface*`, `--md-sys-color-primary*`, state-layer opacities, shape/motion tokens, `prefers-reduced-motion` rule) in `sidebar.css` and verifying `showToast()` toggles `.toast--*` classes without inline `style.background`; confirm Red.
-- [ ] 6.2 Green implementation: migrate `sidebar.css` to M3 tokens + `@media (prefers-reduced-motion: reduce)` and update `showToast()` in `sidebar.js`; commit tests and code together (verify: `node --test`).
-- [ ] 6.3 Full-suite verification (`node --test --experimental-test-coverage`).
+- [x] 6.0 Contract scaffolding: define M3 `:root` and `@media (prefers-color-scheme: light)` token blocks and `.toast--info|success|error` class names in `sidebar.css`.
+- [x] 6.1 Red tests: add `test/m3-theme.test.js` asserting M3 tokens (`--md-sys-color-surface*`, `--md-sys-color-primary*`, state-layer opacities, shape/motion tokens, `prefers-reduced-motion` rule) in `sidebar.css` and verifying `showToast()` toggles `.toast--*` classes without inline `style.background`; confirm Red. Evidence: `node --test test/m3-theme.test.js` -> 2/2 failed before implementation.
+- [x] 6.2 Green implementation: migrate `sidebar.css` to M3 tokens + `@media (prefers-reduced-motion: reduce)` and update `showToast()` in `sidebar.js`; commit tests and code together (verify: `node --test`). Evidence: `node --test` -> 35/35 passed.
+- [x] 6.3 Full-suite verification (`node --test --experimental-test-coverage`). Evidence: `node --test --experimental-test-coverage` -> 35/35 passed; 100.00% line, 98.25% branch, 100.00% funcs across pure modules.
 
 ## 7. Integration & Rebase Plan
 - [ ] 7.1 Human Comprehension Verification: reviewer can explain all generated logic across `background.js`, `strip-reconciler.js`, `frame-manager.js`, `sidebar.html`, `sidebar.css`, and `sidebar.js` line-by-line.

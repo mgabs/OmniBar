@@ -430,15 +430,8 @@ let toastTimeoutId = null;
 function showToast(message, type = 'info') {
   const toast = document.getElementById('toast');
   toast.textContent = message;
-  toast.className = 'toast'; // Reset classes
-  if (type === 'success') {
-    toast.style.background = '#2e7d32';
-  } else if (type === 'error') {
-    toast.style.background = 'var(--danger)';
-  } else {
-    toast.style.background = 'var(--accent)';
-  }
-  toast.classList.add('show');
+  const variant = type === 'success' ? 'toast--success' : type === 'error' ? 'toast--error' : 'toast--info';
+  toast.className = `toast ${variant} show`;
 
   if (toastTimeoutId) clearTimeout(toastTimeoutId);
   toastTimeoutId = setTimeout(() => {
