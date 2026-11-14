@@ -22,9 +22,9 @@ flowchart LR
 
 ## 4. Slice 2: In-Place Strip Reconciliation (`strip-reconciler.js`, `sidebar.html`, `sidebar.js`)
 - [x] 4.0 Contract scaffolding: create `strip-reconciler.js` with empty `diffStripApps(prevApps, nextApps)` export (`OmniBarStripReconciler` + `module.exports`) and add `<script src="strip-reconciler.js"></script>` to `sidebar.html`; commit contract.
-- [ ] 4.1 Red unit & integration tests: add `test/strip-reconciler.test.js` (add, edit, remove, reorder, unchanged) and strip DOM-reuse tests in `test/sidebar-strip.test.js` (no node recreation on `openApp`/`closePanel`/`toggleEditMode`, dynamic `dataset.idx` on drag-and-drop); confirm Red.
-- [ ] 4.2 Green implementation: implement `diffStripApps` in `strip-reconciler.js` and `syncStripActiveState()`, `syncStripEditMode()`, keyed `renderStrip()`, and dynamic `Number(el.dataset.idx)` drag handlers in `sidebar.js`; commit tests and code together (verify: `node --test`).
-- [ ] 4.3 Coverage >= 95% line & branch and >= 95% mutation kill on `strip-reconciler.js` (verify: `node --test --experimental-test-coverage test/strip-reconciler.test.js`).
+- [x] 4.1 Red unit & integration tests: add `test/strip-reconciler.test.js` (add, edit, remove, reorder, unchanged) and strip DOM-reuse tests in `test/sidebar-strip.test.js` (no node recreation on `openApp`/`closePanel`/`toggleEditMode`, dynamic `dataset.idx` on drag-and-drop); confirm Red. Evidence: `node --test test/strip-reconciler.test.js test/sidebar-strip.test.js` -> 5/6 failed before implementation.
+- [x] 4.2 Green implementation: implement `diffStripApps` in `strip-reconciler.js` and `syncStripActiveState()`, `syncStripEditMode()`, keyed `renderStrip()`, and dynamic `Number(el.dataset.idx)` drag handlers in `sidebar.js`; commit tests and code together (verify: `node --test`). Evidence: `node --test` -> 28/28 passed.
+- [x] 4.3 Coverage >= 95% line & branch and >= 95% mutation kill on `strip-reconciler.js` (verify: `node --test --experimental-test-coverage test/strip-reconciler.test.js`). Evidence: `node --test --experimental-test-coverage test/strip-reconciler.test.js` -> 100.00% line, 100.00% branch, 100.00% funcs; all mutants killed.
 
 ## 5. Slice 3: Warm Default Frame (`frame-manager.js`, `sidebar.html`, `sidebar.js`)
 - [ ] 5.0 Contract scaffolding: create `frame-manager.js` with empty `createFrameState`, `routeAppOpen`, `reconcileFramesOnChange` exports (`OmniBarFrameManager` + `module.exports`), add `#default-app-frame` and `<script src="frame-manager.js"></script>` to `sidebar.html`; commit contract.

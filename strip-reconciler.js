@@ -22,7 +22,34 @@
    * }}
    */
   function diffStripApps(prevApps, nextApps) {
-    throw new Error('Not implemented');
+    const prev = Array.isArray(prevApps) ? prevApps : [];
+    const next = Array.isArray(nextApps) ? nextApps : [];
+
+    const prevById = new Map(prev.map(app => [app.id, app]));
+    const nextIds = new Set(next.map(app => app.id));
+
+    const orderedIds = [];
+    const toCreate = [];
+    const toUpdate = [];
+    const toRemoveIds = [];
+
+    for (const app of next) {
+      orderedIds.push(app.id);
+      const old = prevById.get(app.id);
+      if (!old) {
+        toCreate.push(app);
+      } else if (old.name !== app.name || old.url !== app.url) {
+        toUpdate.push(app);
+      }
+    }
+
+    for (const app of prev) {
+      if (!nextIds.has(app.id)) {
+        toRemoveIds.push(app.id);
+      }
+    }
+
+    return { orderedIds, toCreate, toUpdate, toRemoveIds };
   }
 
   return { diffStripApps };

@@ -13,6 +13,8 @@ const DEFAULT_APPS = [
 
 // States
 let apps = [];
+let renderedApps = [];
+const stripNodes = new Map();
 let defaultAppId = null;
 let currentWindowId = null;
 let activeId = null;
@@ -84,64 +86,107 @@ function save() {
   chrome.storage.local.set({ apps, defaultAppId });
 }
 
-// Render app icons
-function renderStrip() {
-  $icons.innerHTML = '';
-  if (editMode) $icons.classList.add('edit-mode');
-  else $icons.classList.remove('edit-mode');
+// Render app icons (keyed in-place reconciliation)
+function syncStripActiveState() {
+  for (const [id, el] of stripNodes) {
+    el.classList.toggle('active', panelOpen && id === activeId);
+  }
+}
 
+function syncStripEditMode() {
+  $icons.classList.toggle('edit-mode', editMode);
   document.getElementById('btn-edit').classList.toggle('active', editMode);
+}
+
+function applyIconData(el, app, idx) {
+  el.dataset.idx = idx;
+  el.dataset.tooltip = app.name;
+  const img = el.children[0];
+  const fb = el.children[1];
+  const nextFavicon = getFavicon(app.url);
+  if (img.src !== nextFavicon) {
+    img.style.display = '';
+    fb.style.display = '';
+    img.src = nextFavicon;
+  }
+  img.alt = app.name;
+  fb.textContent = (app.name.trim()[0] ?? '?').toUpperCase();
+}
+
+function createIconElement(app, idx) {
+  const el = document.createElement('div');
+  el.className = 'app-icon';
+  el.dataset.id = app.id;
+  el.draggable = true;
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+
+  // Favicon
+  const img = document.createElement('img');
+  // Letter fallback
+  const fb = document.createElement('span');
+  fb.className = 'fallback';
+
+  img.addEventListener('error', () => {
+    img.style.display = 'none';
+    fb.style.display = 'flex';
+  });
+
+  el.appendChild(img);
+  el.appendChild(fb);
+
+  // Remove icon (visible in edit mode via CSS)
+  const badge = document.createElement('button');
+  badge.className = 'remove-badge';
+  badge.textContent = '✕';
+  badge.title = 'Remove';
+  badge.addEventListener('click', e => { e.stopPropagation(); removeApp(app.id); });
+  el.appendChild(badge);
+
+  applyIconData(el, app, idx);
+
+  const currentApp = () => apps[Number(el.dataset.idx)] || app;
+  el.addEventListener('click', () => { if (!editMode) toggleApp(currentApp()); });
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' && !editMode) toggleApp(currentApp()); });
+  el.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); showCtxMenu(e, currentApp()); });
+  el.addEventListener('dragstart', e => onDragStart(e, Number(el.dataset.idx)));
+  el.addEventListener('dragover', e => onDragOver(e, el));
+  el.addEventListener('drop', e => onDrop(e, Number(el.dataset.idx)));
+  el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
+  el.addEventListener('dragend', () => cleanDrag());
+
+  return el;
+}
+
+function renderStrip() {
+  const diff = OmniBarStripReconciler.diffStripApps(renderedApps, apps);
+
+  for (const id of diff.toRemoveIds) {
+    const node = stripNodes.get(id);
+    if (node) node.remove();
+    stripNodes.delete(id);
+  }
+
+  for (const app of diff.toCreate) {
+    stripNodes.set(app.id, createIconElement(app, 0));
+  }
+
+  for (const app of diff.toUpdate) {
+    const node = stripNodes.get(app.id);
+    if (node) applyIconData(node, app, 0);
+  }
 
   apps.forEach((app, i) => {
-    const el = document.createElement('div');
-    el.className = 'app-icon' + (panelOpen && app.id === activeId ? ' active' : '');
-    el.dataset.id = app.id;
-    el.dataset.idx = i;
-    el.dataset.tooltip = app.name;
-    el.draggable = true;
-    el.setAttribute('role', 'button');
-    el.setAttribute('tabindex', '0');
-
-    // Favicon
-    const img = document.createElement('img');
-    img.src = getFavicon(app.url);
-    img.alt = app.name;
-
-    // Letter fallback
-    const fb = document.createElement('span');
-    fb.className = 'fallback';
-    fb.textContent = (app.name.trim()[0] ?? '?').toUpperCase();
-
-    img.addEventListener('error', () => {
-      img.style.display = 'none';
-      fb.style.display = 'flex';
-    });
-
-    el.appendChild(img);
-    el.appendChild(fb);
-
-    // Remove icon (edit mode)
-    if (editMode) {
-      const badge = document.createElement('button');
-      badge.className = 'remove-badge';
-      badge.textContent = '✕';
-      badge.title = 'Remove';
-      badge.addEventListener('click', e => { e.stopPropagation(); removeApp(app.id); });
-      el.appendChild(badge);
+    const node = stripNodes.get(app.id);
+    if (node) {
+      node.dataset.idx = i;
+      $icons.appendChild(node);
     }
-
-    // Click: open or close
-    el.addEventListener('click', () => { if (!editMode) toggleApp(app); });
-    el.addEventListener('keydown', e => { if (e.key === 'Enter' && !editMode) toggleApp(app); });
-    el.addEventListener('contextmenu', e => { e.preventDefault(); e.stopPropagation(); showCtxMenu(e, app); });
-    el.addEventListener('dragstart', e => onDragStart(e, i));
-    el.addEventListener('dragover', e => onDragOver(e, el));
-    el.addEventListener('drop', e => onDrop(e, i));
-    el.addEventListener('dragleave', () => el.classList.remove('drag-over'));
-    el.addEventListener('dragend', () => cleanDrag());
-
-    $icons.appendChild(el);
   });
+
+  renderedApps = apps.map(a => ({ ...a }));
+  syncStripActiveState();
+  syncStripEditMode();
 }
 
 // Open / toggle app
@@ -199,7 +244,7 @@ function openApp(app) {
     }, 8000);
   });
 
-  renderStrip();
+  syncStripActiveState();
 }
 
 function closePanel() {
@@ -220,7 +265,7 @@ function closePanel() {
   document.title = 'OmniBar';
 
   $frame.src = '';
-  renderStrip();
+  syncStripActiveState();
 }
 
 // Open helpers
@@ -293,7 +338,7 @@ function removeApp(id) {
 function toggleEditMode() {
   editMode = !editMode;
   if (editMode && panelOpen) closePanel();
-  renderStrip();
+  syncStripEditMode();
 }
 
 // Settings

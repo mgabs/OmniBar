@@ -400,6 +400,7 @@ body {
 
 /* Remove badge (edit mode) */
 .remove-badge {
+  display: none;
   position: absolute;
   top: -4px;
   right: -4px;
@@ -412,10 +413,13 @@ body {
   font-weight: 700;
   border: none;
   cursor: pointer;
-  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10;
+}
+
+.edit-mode .remove-badge {
+  display: flex;
 }
 
 /* Strip footer */
