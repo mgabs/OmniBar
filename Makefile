@@ -1,4 +1,12 @@
-.PHONY: lint test coverage mutation
+.DEFAULT_GOAL := help
+.PHONY: help lint test coverage mutation
+
+help:
+	@printf "Targets:\n"
+	@printf "  make lint      Syntax-check JS files (node -c)\n"
+	@printf "  make test      Run unit and integration tests (node --test)\n"
+	@printf "  make coverage  Run tests with >=95%% line & branch threshold\n"
+	@printf "  make mutation  Mutation testing status\n"
 
 lint:
 	node -c background.js && node -c default-page.js && node -c strip-reconciler.js && node -c frame-manager.js && node -c sidebar.js
