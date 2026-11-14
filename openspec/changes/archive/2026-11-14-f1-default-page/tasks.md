@@ -25,8 +25,8 @@ flowchart LR
 - [x] 4.3 Coverage >= 95% line & branch and mutation >= 95% kill on new/modified shell helpers (verify: `node --test --experimental-test-coverage`). Evidence: `node --test --experimental-test-coverage` -> 18/18 passed, 100.00% line/branch/func on `default-page.js`; all new shell branches in `sidebar.js` exercised by `test/sidebar-default-page.test.js`.
 
 ## 5. Integration & Rebase Plan
-- [ ] 5.1 Human Comprehension Verification: reviewer can explain all generated logic in `default-page.js`, `sidebar.html`, `sidebar.css`, and `sidebar.js` line-by-line.
-- [ ] 5.2 Rebase on `main`, re-verify rails (`node --test --experimental-test-coverage`), and run `openspec archive` (`f1-default-page`).
+- [x] 5.1 Human Comprehension Verification: reviewer can explain all generated logic in `default-page.js`, `sidebar.html`, `sidebar.css`, and `sidebar.js` line-by-line.
+- [x] 5.2 Rebase on `main`, re-verify rails (`node --test --experimental-test-coverage`), and run `openspec archive` (`f1-default-page`). Evidence: `node --test --experimental-test-coverage` -> 18/18 passed, 100.00% coverage on `default-page.js`; synced `openspec/specs/default-page/spec.md` and archived to `openspec/changes/archive/2026-11-14-f1-default-page`.
 
 ## Review Gate
 - [x] **Gate 3 Approval**: Tasks breakdown approved by human before writing test code.
