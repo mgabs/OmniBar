@@ -53,10 +53,14 @@ async function init() {
     chrome.runtime.sendMessage({ type: 'panel-opened', windowId }).catch(() => { });
   }
 
-  const stored = await chrome.storage.local.get('apps');
+  const stored = await chrome.storage.local.get(['apps', 'defaultAppId']);
   apps = Array.isArray(stored.apps) ? stored.apps : DEFAULT_APPS;
+  defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, stored.defaultAppId);
   renderStrip();
   bindListeners();
+
+  const defaultApp = OmniBarDefaultPage.resolveDefaultApp(apps, defaultAppId);
+  if (defaultApp) openApp(defaultApp);
 
   // When the user closes the panel via the browser's own X button,
   // notify background.js so the hotkey toggle state stays accurate.
@@ -77,7 +81,7 @@ function getFavicon(url) {
   } catch { return ''; }
 }
 function save() {
-  chrome.storage.local.set({ apps });
+  chrome.storage.local.set({ apps, defaultAppId });
 }
 
 // Render app icons
@@ -284,6 +288,7 @@ function saveModal() {
 function removeApp(id) {
   if (activeId === id) closePanel();
   apps = apps.filter(a => a.id !== id);
+  defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, defaultAppId);
   save(); renderStrip();
 }
 
@@ -296,12 +301,24 @@ function toggleEditMode() {
 
 // Settings
 function renderDefaultPageSelect() {
-  throw new Error('Not implemented');
+  $defaultPageSelect.innerHTML = '';
+  const options = OmniBarDefaultPage.buildDefaultPageOptions(apps, defaultAppId);
+  options.forEach(opt => {
+    const el = document.createElement('option');
+    el.value = opt.value;
+    el.textContent = opt.label;
+    el.selected = opt.selected;
+    $defaultPageSelect.appendChild(el);
+  });
 }
 function onDefaultPageChange(nextId) {
-  throw new Error('Not implemented');
+  defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, nextId);
+  save();
 }
-function openSettings() { $settingsOverlay.classList.remove('hidden'); }
+function openSettings() {
+  renderDefaultPageSelect();
+  $settingsOverlay.classList.remove('hidden');
+}
 function closeSettings() { $settingsOverlay.classList.add('hidden'); }
 
 function exportApps() {
@@ -343,6 +360,7 @@ function importApps(file) {
       if (!Array.isArray(imported) || !imported.every(a => a.name && a.url))
         throw new Error('Invalid format');
       apps = imported.map(a => ({ id: a.id || uid(), name: String(a.name), url: String(a.url) }));
+      defaultAppId = OmniBarDefaultPage.reconcileDefaultAppId(apps, defaultAppId);
       save();
       if (panelOpen) closePanel();
       renderStrip(); closeSettings();
@@ -357,6 +375,7 @@ function importApps(file) {
 function resetToDefaults() {
   if (!confirm('Reset all apps to defaults? This cannot be undone.')) return;
   apps = DEFAULT_APPS.map(a => ({ ...a, id: uid() }));
+  defaultAppId = null;
   save();
   if (panelOpen) closePanel();
   renderStrip();
@@ -481,6 +500,7 @@ function bindListeners() {
   document.addEventListener('contextmenu', hideCtxMenu);
 
   // Settings modal
+  $defaultPageSelect.addEventListener('change', e => onDefaultPageChange(e.target.value));
   document.getElementById('settings-close').addEventListener('click', closeSettings);
   $settingsOverlay.addEventListener('click', e => { if (e.target === $settingsOverlay) closeSettings(); });
   document.getElementById('settings-export').addEventListener('click', exportApps);
