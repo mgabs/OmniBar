@@ -1,15 +1,13 @@
-# Spec-Rails placeholders: replace each echo with the real command for your stack.
-# Pre-commit hooks and CI call these targets; they only print what must happen.
 .PHONY: lint test coverage mutation
 
 lint:
-	@echo "TODO: run your linter / type checker here (see openspec/spec-rails/TODO.md)"
+	node -c background.js && node -c default-page.js && node -c strip-reconciler.js && node -c frame-manager.js && node -c sidebar.js
 
 test:
-	@echo "TODO: run your unit tests here (see openspec/spec-rails/TODO.md)"
+	node --test
 
 coverage:
-	@echo "TODO: run coverage and fail below 95% line and branch (see openspec/spec-rails/TODO.md)"
+	node --test --experimental-test-coverage --test-coverage-lines=95 --test-coverage-branches=95
 
 mutation:
-	@echo "TODO: run mutation testing and fail below 95% kill score (see openspec/spec-rails/TODO.md)"
+	@echo "No mutation runner installed; verify pure core modules (default-page.js, strip-reconciler.js, frame-manager.js) manually or install Stryker."
