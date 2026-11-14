@@ -13,6 +13,7 @@ const DEFAULT_APPS = [
 
 // States
 let apps = [];
+let defaultAppId = null;
 let activeId = null;
 let panelOpen = false;
 let editMode = false;
@@ -34,6 +35,7 @@ const $mUrl = document.getElementById('modal-url');
 const $ctxMenu = document.getElementById('ctx-menu');
 const $settingsOverlay = document.getElementById('settings-overlay');
 const $settingsFile = document.getElementById('settings-import-file');
+const $defaultPageSelect = document.getElementById('settings-default-page');
 // Header
 const $panelHeader = document.getElementById('panel-header');
 const $panelName = document.getElementById('panel-app-name');
@@ -293,6 +295,12 @@ function toggleEditMode() {
 }
 
 // Settings
+function renderDefaultPageSelect() {
+  throw new Error('Not implemented');
+}
+function onDefaultPageChange(nextId) {
+  throw new Error('Not implemented');
+}
 function openSettings() { $settingsOverlay.classList.remove('hidden'); }
 function closeSettings() { $settingsOverlay.classList.add('hidden'); }
 

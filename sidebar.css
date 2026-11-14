@@ -721,6 +721,22 @@ body {
   background: #3d3d3d;
 }
 
+.settings-select {
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: #333;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.settings-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
 .settings-btn.danger {
   color: var(--danger);
 }
