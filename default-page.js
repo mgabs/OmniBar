@@ -9,7 +9,7 @@
     module.exports = api;
   }
   root.OmniBarDefaultPage = api;
-})(typeof globalThis !== 'undefined' ? globalThis : this, function () {
+})(globalThis, function () {
   /**
    * Resolve the default app object matching `defaultAppId`, or null.
    * @param {Array<{id: string, name: string, url: string}>} apps
@@ -17,7 +17,8 @@
    * @returns {{id: string, name: string, url: string} | null}
    */
   function resolveDefaultApp(apps, defaultAppId) {
-    throw new Error('Not implemented');
+    if (!Array.isArray(apps) || !defaultAppId) return null;
+    return apps.find(app => app.id === defaultAppId) || null;
   }
 
   /**
@@ -27,7 +28,8 @@
    * @returns {string | null}
    */
   function reconcileDefaultAppId(apps, defaultAppId) {
-    throw new Error('Not implemented');
+    const match = resolveDefaultApp(apps, defaultAppId);
+    return match ? match.id : null;
   }
 
   /**
@@ -37,7 +39,17 @@
    * @returns {Array<{value: string, label: string, selected: boolean}>}
    */
   function buildDefaultPageOptions(apps, defaultAppId) {
-    throw new Error('Not implemented');
+    const list = Array.isArray(apps) ? apps : [];
+    const activeId = reconcileDefaultAppId(list, defaultAppId);
+    const options = [{ value: '', label: 'None', selected: activeId === null }];
+    for (const app of list) {
+      options.push({
+        value: app.id,
+        label: app.name,
+        selected: app.id === activeId
+      });
+    }
+    return options;
   }
 
   return {
