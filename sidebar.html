@@ -46,6 +46,9 @@
           <button class="hdr-btn" id="hdr-close" title="Close">&#x2715;</button>
         </div>
       </div>
+      <iframe id="default-app-frame" class="hidden"
+        sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
+        allow="clipboard-read; clipboard-write"></iframe>
       <iframe id="app-frame"
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-popups-to-escape-sandbox allow-top-navigation-by-user-activation"
         allow="clipboard-read; clipboard-write"></iframe>
@@ -173,6 +176,7 @@
   <div id="toast" class="toast"></div>
   <script src="default-page.js"></script>
   <script src="strip-reconciler.js"></script>
+  <script src="frame-manager.js"></script>
   <script src="sidebar.js"></script>
 </body>
 
